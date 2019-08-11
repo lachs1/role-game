@@ -17,6 +17,6 @@ typedef struct {
 /* Public functions in main.c */
 int doCommand(Game *game, char *buffer);
 void freeAll(Game *game);
-Player *createPlayer(const char *buffer, Game *game);
+void *createPlayer(const char *buffer, Game *game);
 
 #endif

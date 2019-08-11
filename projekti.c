@@ -61,7 +61,7 @@ int doCommand(Game *game, char *buffer)
     }
 }
 
-Player *createPlayer(const char *buffer, Game *game)
+void *createPlayer(const char *buffer, Game *game)
 {
     const char *splitChar = " ";
     char **argumentArray = NULL;
@@ -79,9 +79,18 @@ Player *createPlayer(const char *buffer, Game *game)
             *token = '\0';
             argumentArray = realloc(argumentArray, sizeof(char *) * ++spaceCount);
             if (argumentArray == NULL) { // memory alloc failed
-                return NULL;
+                for (int i = 0; i < (spaceCount - 1); i++) {
+                    free(argumentArray[i]);
+                }
+                free(argumentArray);
             }
             argumentArray[spaceCount - 1] = malloc(strlen(tmp) * sizeof(char) + 1);
+            if (argumentArray[spaceCount - 1] == NULL) { // memory alloc failed
+                for (int i = 0; i < (spaceCount - 1); i++) {
+                    free(argumentArray[i]);
+                }
+                free(argumentArray);
+            }
             strcpy(argumentArray[spaceCount - 1], tmp);
             tmp = token + strlen(splitChar);
         }
@@ -89,10 +98,18 @@ Player *createPlayer(const char *buffer, Game *game)
 
     argumentArray = realloc(argumentArray, sizeof(char *) * (spaceCount + 1));
     if (argumentArray == NULL) { // memory alloc failed
-        return NULL;
+        for (int i = 0; i < (spaceCount - 1); i++) {
+            free(argumentArray[i]);
+        }
+        free(argumentArray);
     }
-
     argumentArray[spaceCount] = malloc(strlen(tmp) * sizeof(char) + 1);
+    if (argumentArray[spaceCount] == NULL) { // memory alloc failed
+        for (int i = 0; i < (spaceCount); i++) {
+            free(argumentArray[i]);
+        }
+        free(argumentArray);
+    }
     strcpy(argumentArray[spaceCount], tmp);
 
     //argumentArray = realloc(argumentArray, sizeof(char *) * (spaceCount + 1));
@@ -104,7 +121,7 @@ Player *createPlayer(const char *buffer, Game *game)
 
         game->players = realloc(game->players, (game->playerCount + 1) * sizeof(Player));
         if (game->players == NULL) {
-            free(game->players);
+            freeAll(game);
         }
         strcpy(game->players[game->playerCount].name, argumentArray[1]);
         game->players[game->playerCount].hp = atof(argumentArray[2]);
