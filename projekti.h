@@ -21,6 +21,8 @@ void freeArgumentArray(char** argumentArray);
 void freeAll(Game *game);
 int countArguments(char **argumentArray);
 int compareAlpha(const void* a, const void* b);
+int compareExp(const void* a, const void* b);
 void attackPlayer(char **argumentArray, Game *game);
 void createPlayer(char **argumentArray, Game *game);
+void printPlayers(Game *game);
 #endif

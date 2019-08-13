@@ -15,6 +15,9 @@ int main()
         char buffer[80];
         printf("command >");
         fgets(buffer, sizeof(buffer), stdin);
+        size_t ln = strlen(buffer)-1;
+        if (buffer[ln] == '\n')
+            buffer[ln] = '\0';
         gameOn = doCommand(&game, buffer);
 	}
     freeAll(&game);
@@ -48,7 +51,7 @@ int doCommand(Game *game, char *buffer)
             attackPlayer(argumentArray, game);
             return 1;
         case 'L': // print all players
-            printf("Print player information.\n");
+            printPlayers(game);
             return 1;
         case 'W': // write to file
             printf("Write to file.\n");
@@ -117,9 +120,14 @@ int countArguments(char **argumentArray)
 
 int compareAlpha(const void* a, const void* b)
 {
+    return strcmp(((Player*)a)->name, ((Player*)b)->name);
+}
+
+int compareExp(const void* a, const void* b)
+{
     const Player *playerA = a;
     const Player *playerB = b;
-    return strcmp(playerA->name, playerB->name);
+    return playerB->exp > playerA->exp ? 1 : -1;
 }
 
 void attackPlayer(char **argumentArray, Game *game)
@@ -127,41 +135,52 @@ void attackPlayer(char **argumentArray, Game *game)
     int argumentCount = countArguments(argumentArray);
 
     if (argumentCount == 2) { // attacking another player needs 2 arguments
-        Player *tmpAttacker = malloc(sizeof(Player));
-        strcpy(tmpAttacker->name, argumentArray[0]); // search key for bsearch
+        qsort(game->players, game->playerCount, sizeof(Player), compareAlpha);
 
-        Player *attacker = bsearch(tmpAttacker, game->players, game->playerCount, sizeof(Player), compareAlpha);
-        free(tmpAttacker);
+        Player tmpAttacker;
+        strcpy(tmpAttacker.name, argumentArray[0]); // search key for bsearch
 
-        Player *tmpTarget = malloc(sizeof(Player));
-        strcpy(tmpTarget->name, argumentArray[1]);
+        Player *attacker = bsearch(&tmpAttacker, game->players, game->playerCount, sizeof(Player), (int(*)(const void*,const void*))compareAlpha);
 
-        Player *target = bsearch(tmpTarget, game->players, game->playerCount, sizeof(Player), compareAlpha);
-        free(tmpTarget);
+        Player tmpTarget;
+        strcpy(tmpTarget.name, argumentArray[1]);
 
-        printf("%s, %s", attacker->name, argumentArray[1]);
+        Player *target = bsearch(&tmpTarget, game->players, game->playerCount, sizeof(Player), (int(*)(const void*,const void*))compareAlpha);
 
         if (attacker && target) {  // both found
-            int randomHit = rand() % attacker->weaponMaxDamage + 0;
+            if (attacker->hp > 0) {
+                if (target->hp > 0) {
+                    int randomHit;
+                    int exp;
+                    if (attacker->weaponMaxDamage == 0)
+                        randomHit = 0;
+                    else
+                        randomHit = rand() % attacker->weaponMaxDamage + 0;
 
-            if (target->hp >= randomHit) {
-                target->hp -= randomHit;
+                    if (target->hp >= randomHit) {
+                        target->hp -= randomHit;
+                        exp = randomHit;
+                    } else {
+                        target->hp = 0;
+                        exp = 1.5 * randomHit; // bonus points
+                    }
+
+                    attacker->exp += exp;
+
+                    printf("%s attacked %s with %s by %d damage. "
+                           "%s has %d hitpoints remaining. "
+                           "%s gained %d experience points.\n",
+                            attacker->name, target->name,
+                            attacker->weapon, randomHit,
+                            target->name, target->hp,
+                            attacker->name, exp
+                        );
+                } else {
+                    printf("Target is already DEAD!\n");
+                }
             } else {
-                target->hp = 0;
+                printf("Attacker is dead.\n");
             }
-
-            // Todo: bonus for killing
-            int exp = randomHit;
-            attacker->exp += exp;
-
-            printf("%s attacked %s with %s by %d damage.\
-                    %s has %d hitpoints remaining.\
-                    %s gained %d experience points.\n",
-                    attacker->name, target->name,
-                    attacker->weapon, randomHit,
-                    target->name, target->hp,
-                    attacker->name, exp
-                );
         } else {
             printf("One or more players was not found.\n");
         }
@@ -182,8 +201,10 @@ void createPlayer(char **argumentArray, Game *game)
         game->players[game->playerCount].hp = atof(argumentArray[1]);
         strcpy(game->players[game->playerCount].weapon, argumentArray[2]);
         game->players[game->playerCount].weaponMaxDamage = atof(argumentArray[3]);
+        game->players[game->playerCount].exp = 0;
 
         game->playerCount++;
+
     } else {
         printf("Creating a player needs exactly 4 arguments for example: A Bilbo 25 Dagger 8.\n");
     }
@@ -193,5 +214,15 @@ void createPlayer(char **argumentArray, Game *game)
     }
 
     freeArgumentArray(argumentArray);
+
+}
+
+void printPlayers(Game *game)
+{
+    qsort(game->players, game->playerCount, sizeof(Player), compareExp);
+
+    for(int i = 0; i < game->playerCount; i++) {
+        printf("Name: %s, Hitpoints: %d, Weapon: %s, WeaponMaxDamage: %d, Exp: %d\n", game->players[i].name, game->players[i].hp, game->players[i].weapon, game->players[i].weaponMaxDamage, game->players[i].exp);
+    }
 
 }
