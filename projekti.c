@@ -127,7 +127,8 @@ int compareExp(const void* a, const void* b)
 {
     const Player *playerA = a;
     const Player *playerB = b;
-    return playerB->exp > playerA->exp ? 1 : -1;
+    return playerB->hp == 0 || playerA->hp == 0 ? 1 : playerB->exp > playerA->exp ? 1 : -1;
+    //return playerB->exp > playerA->exp ? 1 : -1;
 }
 
 void attackPlayer(char **argumentArray, Game *game)
@@ -155,12 +156,14 @@ void attackPlayer(char **argumentArray, Game *game)
                     if (attacker->weaponMaxDamage == 0)
                         randomHit = 0;
                     else
-                        randomHit = rand() % attacker->weaponMaxDamage + 0;
+                        randomHit = rand() % (attacker->weaponMaxDamage + 1);
 
-                    if (target->hp >= randomHit) {
+                    if (target->hp > randomHit) {
                         target->hp -= randomHit;
                         exp = randomHit;
                     } else {
+                        printf("%s just killed %s!\n", attacker->name, target->name);
+                        randomHit = target->hp;
                         target->hp = 0;
                         exp = 1.5 * randomHit; // bonus points
                     }
