@@ -241,7 +241,7 @@ void printPlayers(Game *game)
 // fix crash!!!
 void writeToFile(Game *game)
 {
-    FILE *f = fopen("tiedosto", "w");
+    FILE *f = fopen("tiedosto", "wb");
     if (!f) {
         fprintf(stderr, "Opening file failed.\n");
         exit(EXIT_FAILURE); // end program
@@ -264,7 +264,7 @@ void writeToFile(Game *game)
 
 void loadFromFile(Game *game)
 {
-    FILE *f = fopen("tiedosto", "r");
+    FILE *f = fopen("tiedosto", "rb");
     if (!f) {
         fprintf(stderr, "Opening file failed.\n");
         exit(EXIT_FAILURE); // end program
@@ -280,7 +280,11 @@ void loadFromFile(Game *game)
 
     
     free(game->players); // release memory
-
+    game->players = NULL;
+    memset(&game, 0, sizeof(game));
+    printf("%d", playerCount);
+    game->players = malloc(playerCount * sizeof(Player));
+    game->playerCount = playerCount;
     size_t n = fread(game->players, sizeof(Player), playerCount, f);
     if (ferror(f)) {
         fprintf(stderr, "Error occurred\n");
