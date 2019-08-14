@@ -54,10 +54,10 @@ int doCommand(Game *game, char *buffer)
             printPlayers(game);
             return 1;
         case 'W': // write to file
-            printf("Write to file.\n");
+            writeToFile(game);
             return 1;
         case 'O': // open from file
-            printf("Open game from file.\n");
+            loadFromFile(game);
             return 1;
         case 'Q': // quit
             printf("Quit game.\n");
@@ -125,10 +125,11 @@ int compareAlpha(const void* a, const void* b)
 
 int compareExp(const void* a, const void* b)
 {
-    const Player *playerA = a;
-    const Player *playerB = b;
-    return playerB->hp == 0 || playerA->hp == 0 ? 1 : playerB->exp > playerA->exp ? 1 : -1;
-    //return playerB->exp > playerA->exp ? 1 : -1;
+    if (((Player*)b)->hp == 0 && ((Player*)a)->hp != 0)
+        return -1;
+    if (((Player*)a)->hp == 0 && ((Player*)b)->hp != 0)
+        return 1;
+    return ((Player*)b)->exp > ((Player*)a)->exp ? 1 : -1;
 }
 
 void attackPlayer(char **argumentArray, Game *game)
@@ -196,28 +197,36 @@ void createPlayer(char **argumentArray, Game *game)
     int argumentCount = countArguments(argumentArray);
 
     if (argumentCount == 4) { // creating a player needs 4 arguments
-        game->players = realloc(game->players, (game->playerCount + 1) * sizeof(Player));
-        if (game->players == NULL) {
-            freeAll(game);
+
+        qsort(game->players, game->playerCount, sizeof(Player), compareAlpha);
+
+        Player search;
+        strcpy(search.name, argumentArray[0]); // search key for bsearch
+
+        Player *playerExists = bsearch(&search, game->players, game->playerCount, sizeof(Player), (int(*)(const void*,const void*))compareAlpha);
+
+        if (!playerExists) {
+            game->players = realloc(game->players, (game->playerCount + 1) * sizeof(Player));
+            if (game->players == NULL) {
+                freeAll(game);
+            }
+            strcpy(game->players[game->playerCount].name, argumentArray[0]);
+            game->players[game->playerCount].hp = atof(argumentArray[1]);
+            strcpy(game->players[game->playerCount].weapon, argumentArray[2]);
+            game->players[game->playerCount].weaponMaxDamage = atof(argumentArray[3]);
+            game->players[game->playerCount].exp = 0;
+
+            printf("New player '%s' successfully created!\n", game->players[game->playerCount].name);
+
+            game->playerCount++;
+
+        } else {
+            printf("A player with that username already exists.\n");
         }
-        strcpy(game->players[game->playerCount].name, argumentArray[0]);
-        game->players[game->playerCount].hp = atof(argumentArray[1]);
-        strcpy(game->players[game->playerCount].weapon, argumentArray[2]);
-        game->players[game->playerCount].weaponMaxDamage = atof(argumentArray[3]);
-        game->players[game->playerCount].exp = 0;
-
-        game->playerCount++;
-
     } else {
         printf("Creating a player needs exactly 4 arguments for example: A Bilbo 25 Dagger 8.\n");
     }
-
-    for (int i = 0; i < game->playerCount; i++) {
-        printf("%s %d %s %d\n", game->players[i].name, game->players[i].hp, game->players[i].weapon, game->players[i].weaponMaxDamage);
-    }
-
     freeArgumentArray(argumentArray);
-
 }
 
 void printPlayers(Game *game)
@@ -227,5 +236,58 @@ void printPlayers(Game *game)
     for(int i = 0; i < game->playerCount; i++) {
         printf("Name: %s, Hitpoints: %d, Weapon: %s, WeaponMaxDamage: %d, Exp: %d\n", game->players[i].name, game->players[i].hp, game->players[i].weapon, game->players[i].weaponMaxDamage, game->players[i].exp);
     }
+}
 
+// fix crash!!!
+void writeToFile(Game *game)
+{
+    FILE *f = fopen("tiedosto", "w");
+    if (!f) {
+        fprintf(stderr, "Opening file failed.\n");
+        exit(EXIT_FAILURE); // end program
+    }
+
+    int *playerCount = &game->playerCount;
+
+    // first write the amount of players to the file
+    fwrite(playerCount, sizeof(int), 1, f);
+
+    size_t n = fwrite(&game->players, sizeof(Player), game->playerCount, f);
+    if (ferror(f)) {
+        fprintf(stderr, "Error occurred\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(stdout, "%lu players successfully written.\n", n);
+    fclose(f);
+}
+
+void loadFromFile(Game *game)
+{
+    FILE *f = fopen("tiedosto", "r");
+    if (!f) {
+        fprintf(stderr, "Opening file failed.\n");
+        exit(EXIT_FAILURE); // end program
+    }
+
+    int playerCount;
+    fread(&playerCount, sizeof(int), 1, f);
+
+    if (ferror(f)) {
+        fprintf(stderr, "Error occurred\n");
+        exit(EXIT_FAILURE);
+    }
+
+    
+    free(game->players); // release memory
+
+    size_t n = fread(game->players, sizeof(Player), playerCount, f);
+    if (ferror(f)) {
+        fprintf(stderr, "Error occurred\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(stdout, "%lu players successfully read.\n", n);
+    
+    fclose(f);
 }

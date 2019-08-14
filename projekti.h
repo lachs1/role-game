@@ -11,7 +11,7 @@ typedef struct {
 
 typedef struct {
     Player *players; // dynamic array of all players
-    int playerCount;
+    int playerCount; // keeps track of player count
 } Game;
 
 /* Public functions in main.c */
@@ -25,4 +25,7 @@ int compareExp(const void* a, const void* b);
 void attackPlayer(char **argumentArray, Game *game);
 void createPlayer(char **argumentArray, Game *game);
 void printPlayers(Game *game);
+void writeToFile(Game *game);
+void loadFromFile(Game *game);
+
 #endif
