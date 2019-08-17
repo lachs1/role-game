@@ -30,14 +30,6 @@ void freeAll(Game *game)
         free(game->players);
 }
 
-/* Parse command given by user
- * 
- * Parameters:
- * game: game struct
- * buffer: one line read from user
- * 
- * Returns: 1, if game continues; 0 if game ends
- */
 int doCommand(Game *game, char *buffer)
 {
     char** argumentArray = NULL;
@@ -142,12 +134,24 @@ void attackPlayer(char **argumentArray, Game *game)
         Player tmpAttacker;
         strcpy(tmpAttacker.name, argumentArray[0]); // search key for bsearch
 
-        Player *attacker = bsearch(&tmpAttacker, game->players, game->playerCount, sizeof(Player), (int(*)(const void*,const void*))compareAlpha);
+        Player *attacker = bsearch(
+                            &tmpAttacker,
+                            game->players, 
+                            game->playerCount, 
+                            sizeof(Player), 
+                            compareAlpha
+                        );
 
         Player tmpTarget;
         strcpy(tmpTarget.name, argumentArray[1]);
 
-        Player *target = bsearch(&tmpTarget, game->players, game->playerCount, sizeof(Player), (int(*)(const void*,const void*))compareAlpha);
+        Player *target = bsearch(
+                            &tmpTarget, 
+                            game->players, 
+                            game->playerCount, 
+                            sizeof(Player), 
+                            compareAlpha
+                        );
 
         if (attacker && target) {  // both found
             if (attacker->hp > 0) {
@@ -163,10 +167,10 @@ void attackPlayer(char **argumentArray, Game *game)
                         target->hp -= randomHit;
                         exp = randomHit;
                     } else {
-                        printf("%s just killed %s!\n", attacker->name, target->name);
+                        printf("%s just killed %s and gained bonus EXP!\n", attacker->name, target->name);
                         randomHit = target->hp;
                         target->hp = 0;
-                        exp = 1.5 * randomHit; // bonus points
+                        exp = 1.5 * randomHit; // bonus exp
                     }
 
                     attacker->exp += exp;
@@ -203,7 +207,13 @@ void createPlayer(char **argumentArray, Game *game)
         Player search;
         strcpy(search.name, argumentArray[0]); // search key for bsearch
 
-        Player *playerExists = bsearch(&search, game->players, game->playerCount, sizeof(Player), (int(*)(const void*,const void*))compareAlpha);
+        Player *playerExists = bsearch(
+                                &search, 
+                                game->players,
+                                game->playerCount,
+                                sizeof(Player),
+                                compareAlpha
+                            );
 
         if (!playerExists) {
             game->players = realloc(game->players, (game->playerCount + 1) * sizeof(Player));
@@ -234,64 +244,79 @@ void printPlayers(Game *game)
     qsort(game->players, game->playerCount, sizeof(Player), compareExp);
 
     for(int i = 0; i < game->playerCount; i++) {
-        printf("Name: %s, Hitpoints: %d, Weapon: %s, WeaponMaxDamage: %d, Exp: %d\n", game->players[i].name, game->players[i].hp, game->players[i].weapon, game->players[i].weaponMaxDamage, game->players[i].exp);
+        printf("Name: %s, Hitpoints: %d, Weapon: %s, WeaponMaxDamage: %d, Exp: %d\n", 
+            game->players[i].name, 
+            game->players[i].hp,
+            game->players[i].weapon,
+            game->players[i].weaponMaxDamage,
+            game->players[i].exp
+        );
     }
 }
 
-// fix crash!!!
 void writeToFile(Game *game)
 {
-    FILE *f = fopen("tiedosto", "wb");
+    FILE *f = fopen("tiedosto", "w");
     if (!f) {
         fprintf(stderr, "Opening file failed.\n");
-        exit(EXIT_FAILURE); // end program
+    } else {
+        for (int i = 0; i < game->playerCount; i++) {
+            fprintf(f, "%s %d %d %s %d\n", 
+                game->players[i].name, 
+                game->players[i].hp,
+                game->players[i].exp,
+                game->players[i].weapon,
+                game->players[i].weaponMaxDamage
+            );
+            if (ferror(f)) {
+                fprintf(stderr, "Error while writing to file.\n");
+            }
+        }
+        fprintf(stdout, "Game successfully saved to file 'tiedosto'.\n");
     }
 
-    int *playerCount = &game->playerCount;
-
-    // first write the amount of players to the file
-    fwrite(playerCount, sizeof(int), 1, f);
-
-    size_t n = fwrite(&game->players, sizeof(Player), game->playerCount, f);
-    if (ferror(f)) {
-        fprintf(stderr, "Error occurred\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(stdout, "%lu players successfully written.\n", n);
     fclose(f);
 }
 
 void loadFromFile(Game *game)
 {
-    FILE *f = fopen("tiedosto", "rb");
+    FILE *f = fopen("tiedosto", "r");
     if (!f) {
         fprintf(stderr, "Opening file failed.\n");
         exit(EXIT_FAILURE); // end program
     }
 
-    int playerCount;
-    fread(&playerCount, sizeof(int), 1, f);
-
-    if (ferror(f)) {
-        fprintf(stderr, "Error occurred\n");
-        exit(EXIT_FAILURE);
+    if (game->playerCount) {
+        free(game->players); // release memory
+        game->players = NULL;
+        game->playerCount = 0;
     }
 
-    
-    free(game->players); // release memory
-    game->players = NULL;
-    memset(&game, 0, sizeof(game));
-    printf("%d", playerCount);
-    game->players = malloc(playerCount * sizeof(Player));
-    game->playerCount = playerCount;
-    size_t n = fread(game->players, sizeof(Player), playerCount, f);
-    if (ferror(f)) {
-        fprintf(stderr, "Error occurred\n");
-        exit(EXIT_FAILURE);
+    game->players = malloc(sizeof(Player));
+
+    int ret = fscanf(f, "%s %d %d %s %d\n", 
+            game->players[game->playerCount].name, 
+            &game->players[game->playerCount].hp,
+            &game->players[game->playerCount].exp,
+            game->players[game->playerCount].weapon,
+            &game->players[game->playerCount].weaponMaxDamage
+        );
+
+    while(ret > 0) {
+
+        game->playerCount++;
+        game->players = realloc(game->players, (game->playerCount + 1) * sizeof(Player));
+        
+        ret = fscanf(f, "%s %d %d %s %d\n", 
+            game->players[game->playerCount].name, 
+            &game->players[game->playerCount].hp,
+            &game->players[game->playerCount].exp,
+            game->players[game->playerCount].weapon,
+            &game->players[game->playerCount].weaponMaxDamage
+        );
     }
 
-    fprintf(stdout, "%lu players successfully read.\n", n);
+    fprintf(stdout, "Successfully read %d players from file.\n", game->playerCount);
     
     fclose(f);
 }
