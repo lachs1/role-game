@@ -25,7 +25,7 @@ int compareExp(const void* a, const void* b);
 void attackPlayer(char **argumentArray, Game *game);
 void createPlayer(char **argumentArray, Game *game);
 void printPlayers(Game *game);
-void writeToFile(Game *game);
-void loadFromFile(Game *game);
+void writeToFile(Game *game, char** argumentArray);
+void loadFromFile(Game *game, char** argumentArray);
 
 #endif

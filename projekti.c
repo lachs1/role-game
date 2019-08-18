@@ -38,7 +38,7 @@ int doCommand(Game *game, char *buffer)
             argumentArray = splitCommand(buffer);
             createPlayer(argumentArray, game);
             return 1;
-        case 'H': // attack
+        case 'H': // attack another player
             argumentArray = splitCommand(buffer);
             attackPlayer(argumentArray, game);
             return 1;
@@ -46,17 +46,19 @@ int doCommand(Game *game, char *buffer)
             printPlayers(game);
             return 1;
         case 'W': // write to file
-            writeToFile(game);
+            argumentArray = splitCommand(buffer);
+            writeToFile(game, argumentArray);
             return 1;
         case 'O': // open from file
-            loadFromFile(game);
+            argumentArray = splitCommand(buffer);
+            loadFromFile(game, argumentArray);
             return 1;
-        case 'Q': // quit
+        case 'Q': // quit game
             printf("Quit game.\n");
-            return 0; // game over
-        default:
+            return 0;
+        default: // invalid input
             printf("Input error.\n");
-            return 1; // game continues
+            return 1;
     }
 }
 
@@ -254,69 +256,81 @@ void printPlayers(Game *game)
     }
 }
 
-void writeToFile(Game *game)
+void writeToFile(Game *game, char** argumentArray)
 {
-    FILE *f = fopen("tiedosto", "w");
-    if (!f) {
-        fprintf(stderr, "Opening file failed.\n");
-    } else {
-        for (int i = 0; i < game->playerCount; i++) {
-            fprintf(f, "%s %d %d %s %d\n", 
-                game->players[i].name, 
-                game->players[i].hp,
-                game->players[i].exp,
-                game->players[i].weapon,
-                game->players[i].weaponMaxDamage
-            );
-            if (ferror(f)) {
-                fprintf(stderr, "Error while writing to file.\n");
-            }
-        }
-        fprintf(stdout, "Game successfully saved to file 'tiedosto'.\n");
-    }
+    int argumentCount = countArguments(argumentArray);
 
-    fclose(f);
+    if (argumentCount == 1) { // writing to file needs 1 argument
+        FILE *f = fopen(argumentArray[0], "w");
+        if (!f) {
+            fprintf(stdout, "Opening file '%s' failed.\n", argumentArray[0]);
+        } else {
+            for (int i = 0; i < game->playerCount; i++) {
+                fprintf(f, "%s %d %d %s %d\n", 
+                    game->players[i].name, 
+                    game->players[i].hp,
+                    game->players[i].exp,
+                    game->players[i].weapon,
+                    game->players[i].weaponMaxDamage
+                );
+                if (ferror(f)) {
+                    fprintf(stdout, "Error while writing to file.\n");
+                }
+            }
+            fprintf(stdout, "Game successfully saved to file '%s'.\n", argumentArray[0]);
+        }
+
+        fclose(f);
+    } else {
+        printf("Writing to file needs exactly 1 argument for example: W tiedosto.\n");
+    }
+    freeArgumentArray(argumentArray);
 }
 
-void loadFromFile(Game *game)
+void loadFromFile(Game *game, char** argumentArray)
 {
-    FILE *f = fopen("tiedosto", "r");
-    if (!f) {
-        fprintf(stderr, "Opening file failed.\n");
-        exit(EXIT_FAILURE); // end program
-    }
+    int argumentCount = countArguments(argumentArray);
 
-    if (game->playerCount) {
-        free(game->players); // release memory
-        game->players = NULL;
-        game->playerCount = 0;
-    }
+    if (argumentCount == 1) { // reading from file needs 1 argument
+        FILE *f = fopen(argumentArray[0], "r");
+        if (!f) {
+            fprintf(stdout, "Opening file '%s' failed.\n", argumentArray[0]);
+        } else {
+            if (game->playerCount) {
+                free(game->players); // release memory
+                game->players = NULL;
+                game->playerCount = 0;
+            }
 
-    game->players = malloc(sizeof(Player));
+            game->players = malloc(sizeof(Player));
 
-    int ret = fscanf(f, "%s %d %d %s %d\n", 
-            game->players[game->playerCount].name, 
-            &game->players[game->playerCount].hp,
-            &game->players[game->playerCount].exp,
-            game->players[game->playerCount].weapon,
-            &game->players[game->playerCount].weaponMaxDamage
-        );
+            int ret = fscanf(f, "%s %d %d %s %d\n", 
+                    game->players[game->playerCount].name, 
+                    &game->players[game->playerCount].hp,
+                    &game->players[game->playerCount].exp,
+                    game->players[game->playerCount].weapon,
+                    &game->players[game->playerCount].weaponMaxDamage
+                );
 
-    while(ret > 0) {
+            while(ret > 0) {
 
-        game->playerCount++;
-        game->players = realloc(game->players, (game->playerCount + 1) * sizeof(Player));
+                game->playerCount++;
+                game->players = realloc(game->players, (game->playerCount + 1) * sizeof(Player));
+                
+                ret = fscanf(f, "%s %d %d %s %d\n", 
+                    game->players[game->playerCount].name, 
+                    &game->players[game->playerCount].hp,
+                    &game->players[game->playerCount].exp,
+                    game->players[game->playerCount].weapon,
+                    &game->players[game->playerCount].weaponMaxDamage
+                );
+            }
+            fprintf(stdout, "Successfully read %d players from file '%s'.\n", game->playerCount, argumentArray[0]);
+        }
         
-        ret = fscanf(f, "%s %d %d %s %d\n", 
-            game->players[game->playerCount].name, 
-            &game->players[game->playerCount].hp,
-            &game->players[game->playerCount].exp,
-            game->players[game->playerCount].weapon,
-            &game->players[game->playerCount].weaponMaxDamage
-        );
+        fclose(f);
+    } else {
+        printf("Reading from file needs exactly 1 argument for example: O tiedosto.\n");
     }
-
-    fprintf(stdout, "Successfully read %d players from file.\n", game->playerCount);
-    
-    fclose(f);
+    freeArgumentArray(argumentArray);
 }
