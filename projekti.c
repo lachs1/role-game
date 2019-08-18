@@ -14,7 +14,8 @@ int main()
     while(gameOn) {
         char buffer[80];
         printf("command >");
-        fgets(buffer, sizeof(buffer), stdin);
+        char *c = fgets(buffer, sizeof(buffer), stdin);
+        if (c == NULL) break; // EOF
         size_t ln = strlen(buffer)-1;
         if (buffer[ln] == '\n')
             buffer[ln] = '\0';
@@ -70,27 +71,28 @@ char** splitCommand(const char *buffer)
     char *next = strstr(buffer, split); // skip command type
     buffer = next + strlen(split);
     int c = 0;
+    if (next) {
+        while(1) {
+            argumentArray = realloc(argumentArray, (c + 2) * sizeof(char*));
+            argumentArray[c + 1] = NULL;
 
-    while(1) {
-        argumentArray = realloc(argumentArray, (c + 2) * sizeof(char*));
-        argumentArray[c + 1] = NULL;
+            char *next = strstr(buffer, split); // find next space
 
-        char *next = strstr(buffer, split); // find next space
+            if (!next) // end of string
+                break;
 
-        if (!next) // end of string
-            break;
+            int length = next - buffer; // length of the part
+            argumentArray[c] = calloc(length + 1, sizeof(char));
+            strncpy(argumentArray[c], buffer, length);
 
-        int length = next - buffer; // length of the part
+            buffer = next + strlen(split);
+            c++;
+        }
+        // last part of string
+        int length = strlen(buffer);
         argumentArray[c] = calloc(length + 1, sizeof(char));
         strncpy(argumentArray[c], buffer, length);
-
-        buffer = next + strlen(split);
-        c++;
     }
-    // last part of string
-    int length = strlen(buffer);
-    argumentArray[c] = calloc(length + 1, sizeof(char));
-    strncpy(argumentArray[c], buffer, length);
 
     return argumentArray;
 }
@@ -278,9 +280,9 @@ void writeToFile(Game *game, char** argumentArray)
                 }
             }
             fprintf(stdout, "Game successfully saved to file '%s'.\n", argumentArray[0]);
+            fclose(f);
         }
 
-        fclose(f);
     } else {
         printf("Writing to file needs exactly 1 argument for example: W tiedosto.\n");
     }
@@ -326,9 +328,9 @@ void loadFromFile(Game *game, char** argumentArray)
                 );
             }
             fprintf(stdout, "Successfully read %d players from file '%s'.\n", game->playerCount, argumentArray[0]);
+            fclose(f);
         }
         
-        fclose(f);
     } else {
         printf("Reading from file needs exactly 1 argument for example: O tiedosto.\n");
     }
